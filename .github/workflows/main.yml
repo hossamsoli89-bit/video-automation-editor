@@ -51,6 +51,7 @@ jobs:
         run: |
           source venv/bin/activate
           python video_editor.py
+        continue-on-error: true
 
       - name: Check if video file exists
         id: check_files
@@ -80,3 +81,13 @@ jobs:
           find . -name "*.mp4" -type f
           echo "Checking for any video files:"
           find . -type f \( -name "*.mp4" -o -name "*.mov" -o -name "*.avi" \)
+          echo "Checking script logs:"
+          if [ -f "script.log" ]; then
+            cat script.log
+          fi
+
+      - name: Check script exit code
+        if: always()
+        run: |
+          echo "Script exit code: ${{ steps.run-script.outcome }}"
+          echo "Job status: ${{ job.status }}"
