@@ -24,25 +24,26 @@ jobs:
         with:
           python-version: '3.10'
 
-      # الخطوة 3: تثبيت المكتبات (Dependencies) التي يحتاجها سكربت الباthon
+      # الخطوة 3: تثبيت المكتبات (Dependencies) التي يحتاجها سكربت البايثون
       - name: Install dependencies
         run: |
           python -m pip --version
-          python -m pip --upgrade pip
+          python -m pip install --upgrade pip
           pip install requests
           pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
           pip install moviepy
           pip install Pillow
 
       # الخطوة 4: تشغيل سكربت البايثون الذي يقوم بكل عمل المونتاج
-      # *** الحل النهائي: استخدام `python` بدلاً من `python3.10` ***
+      # هنا نقوم بتمرير المفاتيح السرية (API Keys) كمتغيرات بيئة لأمانها
       - name: Run Video Editor Script
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-          GOOGLE_DRIVE_FOLDER_ID: $خطأ_النهائي}}
-        run: `python video_editor.py`
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+        # *** التعديل النهائي: استخدام python3.10 لتجنب ModuleNotFoundError ***
+        run: python3.10 video_editor.py
 
-      # الخطوة 5: رفع الفيديو النهائي كـ "Artifact" لتمكن من تنزيله
+      # الخطوة 5: رفع الفيديو الناتج كـ "Artifact" لتمكن من تنزيله
       # *** تم التحديث إلى الإصدار v4 ***
       - name: Upload Video Artifact
         uses: actions/upload-artifact@v4
