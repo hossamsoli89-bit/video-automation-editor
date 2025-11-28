@@ -1,6 +1,2 @@
-moviepy>=1.0.3
-numpy>=1.19.0
-decorator>=4.0.2
-imageio>=2.5.0
-imageio-ffmpeg>=0.4.1
-tqdm>=4.45.0
+- name: Install from requirements.txt
+  run: python3.10 -m pip install -r requirements.txt
