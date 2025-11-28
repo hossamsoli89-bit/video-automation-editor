@@ -19,12 +19,7 @@ except ImportError as e:
     sys.exit(1)
 
 # --- الإعدادات ---
-# مفتاح Pexels API (يتم استخدامه فقط إذا لم يتم تعيين متغير البيئة)
-PEXELS_API_KEY = "uhGIWsycvZEJfCDfM2BqSvp4qg8hJUcvjQpNWtlmf3rCLwJdgriZeOIk"
-# تجاوز المفتاح إذا كان متغير البيئة موجودًا (للاستخدام في GitHub Actions)
-if os.environ.get("PEXELS_API_KEY"):
-    PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
-
+PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
 GOOGLE_DRIVE_FOLDER_ID = os.environ.get("GOOGLE_DRIVE_FOLDER_ID")
 
 # --- سيناريو الفيديو ---
@@ -182,7 +177,16 @@ def main():
 
         if not video_clips:
             print("لم يتم إنشاء أي مقاطع فيديو. إنهاء العملية.")
-            return
+            # إنشاء فيديو بديل إذا لم يتم العثور على فيديوهات
+            print("إنشاء فيديو بديل...")
+            img = Image.new('RGB', (1280, 720), color='black')
+            draw = ImageDraw.Draw(img)
+            font = ImageFont.load_default()
+            draw.text((50, 50), "لم يتم العثور على فيديوهات", fill='white', font=font)
+            img.save(os.path.join(temp_dir, "fallback.jpg"))
+            clip = ImageClip(os.path.join(temp_dir, "fallback.jpg"))
+            clip = clip.set_duration(5)
+            video_clips.append(clip)
 
         # دمج مقاطع الفيديو
         print("دمج مقاطع الفيديو...")
@@ -220,7 +224,9 @@ def main():
                 audio_codec='aac', 
                 temp_audiofile=os.path.join(temp_dir, 'temp-audio.m4a'), 
                 remove_temp=True, 
-                fps=24
+                fps=24,
+                verbose=False,
+                logger=None
             )
             print("اكتمل إنشاء الفيديو بنجاح!")
             
@@ -228,6 +234,14 @@ def main():
             final_output_path = os.path.join(os.getcwd(), "final_video.mp4")
             shutil.copy2(output_filename, final_output_path)
             print(f"تم نسخ الفيديو النهائي إلى: {final_output_path}")
+            
+            # التحقق من وجود الملف
+            if os.path.exists(final_output_path):
+                print(f"تم التحقق من وجود الفيديو النهائي: {final_output_path}")
+                print(f"حجم الملف: {os.path.getsize(final_output_path)} bytes")
+            else:
+                print("تحذير: الفيديو النهائي غير موجود بعد النسخ!")
+                
         except Exception as e:
             print(f"فشل في حفظ الفيديو النهائي: {e}")
             traceback.print_exc()
