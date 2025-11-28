@@ -1,86 +1,63 @@
 import os
 import sys
+import subprocess
 import tempfile
 import shutil
 import logging
-from PIL import Image, ImageDraw, ImageFont
 
-# إعداد التسجيل
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-try:
-    from moviepy.editor import ImageClip, concatenate_videoclips, CompositeVideoClip, TextClip
-    logger.info("تم استيراد moviepy بنجاح")
-except ImportError as e:
-    logger.error(f"خطأ في استيراد moviepy: {e}")
-    sys.exit(1)
-
-def create_simple_video():
-    """إنشاء فيديو بسيط بدون الاعتماد على API خارجي"""
-    logger.info("بدء إنشاء فيديو بسيط...")
+def create_video_with_ffmpeg():
+    """إنشاء فيديو باستخدام ffmpeg مباشرة"""
+    logger.info("بدء إنشاء فيديو باستخدام ffmpeg...")
     
     # إنشاء دليل مؤقت
     temp_dir = tempfile.mkdtemp()
     logger.info(f"تم إنشاء دليل مؤقت: {temp_dir}")
     
     try:
-        # إنشاء صورة نصية
-        img_path = os.path.join(temp_dir, "text_image.png")
-        img = Image.new('RGB', (1280, 720), color='black')
-        draw = ImageDraw.Draw(img)
+        # إنشاء صورة نصية باستخدام ImageMagick
+        img_path = os.path.join(temp_dir, "text.png")
+        cmd = [
+            "convert",
+            "-size", "1280x720",
+            "xc:black",
+            "-font", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "-pointsize", "60",
+            "-fill", "white",
+            "-gravity", "center",
+            "-annotate", "+0+0",
+            "فيديو تجريبي\nتم إنشاؤه بنجاح!",
+            img_path
+        ]
         
-        # استخدام خط افتراضي
-        try:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 60)
-        except:
-            font = ImageFont.load_default()
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            logger.error(f"فشل في إنشاء الصورة: {result.stderr}")
+            return False
         
-        # كتابة النص
-        text = "فيديو تجريبي\nتم إنشاؤه بنجاح!"
-        lines = text.split('\n')
-        y_text = 200
-        for line in lines:
-            bbox = draw.textbbox((0, 0), line, font=font)
-            text_width = bbox[2] - bbox[0]
-            text_height = bbox[3] - bbox[1]
-            x_text = (1280 - text_width) / 2
-            draw.text((x_text, y_text), line, font=font, fill='white')
-            y_text += text_height + 20
-        
-        img.save(img_path)
         logger.info("تم إنشاء الصورة النصية")
         
-        # إنشاء كليب من الصورة
-        clip = ImageClip(img_path)
-        clip = clip.set_duration(5)
+        # إنشاء فيديو باستخدام ffmpeg
+        output_path = os.path.join(temp_dir, "output.mp4")
+        cmd = [
+            "ffmpeg",
+            "-loop", "1",
+            "-i", img_path,
+            "-c:v", "libx264",
+            "-t", "5",
+            "-pix_fmt", "yuv420p",
+            "-vf", "scale=1280:720",
+            output_path
+        ]
         
-        # إضافة نص متحرك
-        try:
-            txt_clip = TextClip(
-                "Hello World!", 
-                fontsize=70, 
-                color='white',
-                bg_color='transparent'
-            ).set_position('center').set_duration(5)
-            
-            final_clip = CompositeVideoClip([clip, txt_clip])
-        except:
-            # إذا فشل TextClip، استخدم الصورة فقط
-            final_clip = clip
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            logger.error(f"فشل في إنشاء الفيديو: {result.stderr}")
+            return False
         
-        # حفظ الفيديو
-        output_path = os.path.join(temp_dir, "simple_video.mp4")
-        logger.info(f"حفظ الفيديو في: {output_path}")
-        
-        final_clip.write_videofile(
-            output_path,
-            codec='libx264',
-            audio_codec='aac',
-            fps=24,
-            verbose=False,
-            logger=None
-        )
+        logger.info("تم إنشاء الفيديو بنجاح")
         
         # نسخ الفيديو إلى المجلد الرئيسي
         final_output = os.path.join(os.getcwd(), "final_video.mp4")
@@ -105,9 +82,13 @@ def create_simple_video():
 
 if __name__ == "__main__":
     try:
-        success = create_simple_video()
+        success = create_video_with_ffmpeg()
         if success:
             logger.info("اكتمل التنفيذ بنجاح")
             sys.exit(0)
         else:
-            logger.error("فشل في
+            logger.error("فشل في إنشاء الفيديو")
+            sys.exit(1)
+    except Exception as e:
+        logger.error(f"خطأ غير متوقع: {e}")
+        sys.exit(1)
