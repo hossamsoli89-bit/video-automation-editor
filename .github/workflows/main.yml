@@ -1,50 +1,19 @@
-# اسم سير العمل الذي سيظهر في واجهة GitHub Actions
-name: Video Editor Workflow
+name: Simple Python Test
 
-# متى يتم تشغيل هذا السير العمل
 on:
   workflow_dispatch:
 
-# الوظائف (Jobs) التي سيقوم بها السير العمل
 jobs:
-  create-video:
+  run-python-script:
     runs-on: ubuntu-latest
-
-    # الخطوات (Steps) التي ستتنفذ بالترتيب
     steps:
-      # الخطوة 1: تحميل ملفات المستودع (الكود الخاص بنا)
-      # *** تم التحديث إلى الإصدار v4 ***
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # الخطوة 2: تثبيت لغة بايثون اللازمة لتشغيل السكربت
-      # *** تم التحديث إلى الإصدار v5 ***
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.10'
 
-      # الخطوة 3: تثبيت المكتبات (Dependencies) التي يحتاجها سكربت البايثون
-      - name: Install dependencies
-        run: |
-          python -m pip --version
-          python -m pip install --upgrade pip
-          pip install requests
-          pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
-          pip install moviepy
-          pip install Pillow
-
-      # الخطوة 4: تشغيل سكربت البايثون الذي يقوم بكل عمل المونتاج
-      - name: Run Video Editor Script
-        env:
-          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
-        run: python video_editor.py
-
-      # الخطوة 5: رفع الفيديو الناتج كـ "Artifact" لتمكن من تنزيله
-      # *** تم التحديث إلى الإصدار v4 ***
-      - name: Upload Video Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: final-video
-          path: final_video.mp4
+      - name: Run simple script
+        run: python -c "print('Hello from GitHub Actions! Python is working.')"
