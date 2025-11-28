@@ -19,7 +19,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg imagemagick python3-tk fonts-dejavu-core libavformat-dev libavcodec-dev libavdevice-dev libavfilter-dev libswscale-dev libswresample-dev
+          sudo apt-get install -y ffmpeg imagemagick python3-tk fonts-dejavu-core libavformat-dev libavcodec-dev libavdevice-dev libavfilter-dev libswscale-dev libswreserve-dev
 
       - name: Create virtual environment
         run: python3.10 -m venv venv
@@ -52,8 +52,31 @@ jobs:
           source venv/bin/activate
           python video_editor.py
 
+      - name: Check if video file exists
+        id: check_files
+        run: |
+          if [ -f "final_video.mp4" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "File size: $(stat -c%s final_video.mp4) bytes"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Current directory contents:"
+            ls -la
+          fi
+
       - name: Upload Video Artifact
+        if: steps.check_files.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: final-video
           path: final_video.mp4
+
+      - name: Debug if video not found
+        if: steps.check_files.outputs.exists == 'false'
+        run: |
+          echo "Video file not found. Listing current directory:"
+          ls -la
+          echo "Looking for any .mp4 files:"
+          find . -name "*.mp4" -type f
+          echo "Checking for any video files:"
+          find . -type f \( -name "*.mp4" -o -name "*.mov" -o -name "*.avi" \)
