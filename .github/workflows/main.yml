@@ -1,10 +1,10 @@
 name: Video Editor Workflow
 
 on:
-  workflow_dispatch: # يسمح لنا بتشغيله يدوياً بالضغط على زر
+  workflow_dispatch: # يسمح لنا بتشغيله يدوياً
 
 jobs:
-  prepare-environment:
+  create-video:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -17,11 +17,21 @@ jobs:
 
       - name: Install dependencies
         run: |
+          python -m pip --version
           python -m pip install --upgrade pip
           pip install requests
           pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
           pip install moviepy
-          # moviepy هي مكتبة بديلة لـ FFmpeg أسهل في الاستخدام مع Python
+          pip install Pillow
 
-      - name: Log success
-        run: echo "Environment is ready! Python and dependencies are installed."
+      - name: Run Video Editor Script
+        env:
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }} # سنقوم بإضافة هذا المفتاح لاحقاً
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }} # وهذا أيضاً
+        run: python video_editor.py
+
+      - name: Upload Video Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: final-video
+          path: final_video.mp4
