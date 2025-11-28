@@ -20,6 +20,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg imagemagick python3-tk fonts-dejavu-core libavformat-dev libavcodec-dev libavdevice-dev libavfilter-dev libswscale-dev libswresample-dev
+          sudo apt-get install -y chromium-browser
+          sudo apt-get install -y chromium-chromedriver
 
       - name: Create virtual environment
         run: python3.10 -m venv venv
@@ -36,6 +38,11 @@ jobs:
           pip install moviepy==1.0.3
           pip install Pillow==9.5.0
           pip install requests
+          pip install google-api-python-client
+          pip install google-auth
+          pip install google-auth-oauthlib
+          pip install selenium
+          pip install webdriver-manager
           pip list
 
       - name: Verify moviepy installation
@@ -43,7 +50,7 @@ jobs:
           source venv/bin/activate
           python -c "import moviepy.editor; print('MoviePy installed successfully')"
 
-      - name: Run video creation with Pexels
+      - name: Run video creation
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: |
@@ -51,11 +58,34 @@ jobs:
           python video_editor.py > script.log 2>&1
           echo "Script exit code: $?"
 
-      - name: Check log file
+      - name: Upload videos to all platforms
+        env:
+          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
         run: |
-          echo "=== Script Log ==="
+          source venv/bin/activate
+          python simple_uploader.py > upload.log 2>&1
+          echo "Upload exit code: $?"
+
+      - name: Upload Video Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-video
+          path: final_video.mp4
+
+      - name: Upload Results Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: upload-results
+          path: upload_results.json
+
+      - name: Display logs
+        run: |
+          echo "=== Video Creation Log ==="
           cat script.log
-          echo "=================="
+          echo "=== Upload Log ==="
+          cat upload.log
+          echo "=== Results ==="
+          cat upload_results.json
 
       - name: Check if video exists
         id: check_files
@@ -68,13 +98,6 @@ jobs:
             echo "Current directory contents:"
             ls -la
           fi
-
-      - name: Upload Video Artifact
-        if: steps.check_files.outputs.exists == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: final-video
-          path: final_video.mp4
 
       - name: Debug if video not found
         if: steps.check_files.outputs.exists == 'false'
