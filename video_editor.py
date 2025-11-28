@@ -5,10 +5,11 @@ import random
 import sys
 import traceback
 import tempfile
+import shutil
 
 # --- محاولة استيراد المكتبات مع معالجة الأخطاء ---
 try:
-    from moviepy.editor import *
+    from moviepy.editor import VideoFileClip, ImageClip, concatenate_videoclips, CompositeVideoClip
     from moviepy.video.tools.subtitles import SubtitlesClip
     from PIL import Image, ImageDraw, ImageFont
     import textwrap
@@ -18,12 +19,15 @@ except ImportError as e:
     sys.exit(1)
 
 # --- الإعدادات ---
-# سيتم جلب هذه القيم من أسرار GitHub (secrets)
-PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
+# مفتاح Pexels API (يتم استخدامه فقط إذا لم يتم تعيين متغير البيئة)
+PEXELS_API_KEY = "uhGIWsycvZEJfCDfM2BqSvp4qg8hJUcvjQpNWtlmf3rCLwJdgriZeOIk"
+# تجاوز المفتاح إذا كان متغير البيئة موجودًا (للاستخدام في GitHub Actions)
+if os.environ.get("PEXELS_API_KEY"):
+    PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
+
 GOOGLE_DRIVE_FOLDER_ID = os.environ.get("GOOGLE_DRIVE_FOLDER_ID")
 
-# --- سيناريو الفيديو (مؤقت) ---
-# في التطبيق الحقيقي، سنقوم بجلب هذا من Google Apps Script
+# --- سيناريو الفيديو ---
 SCRIPT = """
 أهلًا بالجميع! كيف حالكم اليوم؟ هل تشعرون بأنكم بحاجة لجرعة إضافية من السعادة؟
 أنا متأكد أن الإجابة هي نعم! كلنا نبحث عن السعادة، لكن أحيانًا ننسى أنها تكمن في أبسط الأشياء.
@@ -91,10 +95,25 @@ def create_text_clip(text, duration, fontsize=40, color='white', bgcolor='black'
     img = Image.new('RGB', size, bgcolor)
     draw = ImageDraw.Draw(img)
     
-    try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", fontsize)
-    except IOError:
+    # محاولة استخدام خطوط متعددة
+    font_paths = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/System/Library/Fonts/Arial.ttf"
+    ]
+    
+    font = None
+    for font_path in font_paths:
+        try:
+            font = ImageFont.truetype(font_path, fontsize)
+            break
+        except IOError:
+            continue
+    
+    # استخدام الخط الافتراضي إذا لم يتم العثور على خط
+    if font is None:
         font = ImageFont.load_default()
+        print("تحذير: استخدام الخط الافتراضي لأنه لم يتم العثور على خط مناسب.")
 
     lines = textwrap.wrap(text, width=40)
     y_text = 10
@@ -115,91 +134,110 @@ def create_text_clip(text, duration, fontsize=40, color='white', bgcolor='black'
 def main():
     print("بدء عملية إنشاء الفيديو...")
     
-    # إنشاء دليل مؤقت باستخدام tempfile
+    # إنشاء دليل مؤقت
     temp_dir = tempfile.mkdtemp()
     print(f"تم إنشاء دليل مؤقت: {temp_dir}")
     
-    sentences = re.split(r'(?<=[.!?])\s+', SCRIPT.strip())
-    print(f"تم تقسيم السيناريو إلى {len(sentences)} جملة للبحث.")
+    try:
+        # تقسيم السيناريو إلى جمل
+        sentences = re.split(r'(?<=[.!?])\s+', SCRIPT.strip())
+        print(f"تم تقسيم السيناريو إلى {len(sentences)} جملة للبحث.")
 
-    video_clips = []
-    current_time = 0
-    subtitles = ""
-    
-    for i, sentence in enumerate(sentences):
-        print(f"معالجة الجملة {i+1}: '{sentence[:30]}...'")
+        video_clips = []
+        current_time = 0
+        subtitles = ""
         
-        keywords = [word for word in sentence.split() if len(word) > 4]
-        query = random.choice(keywords) if keywords else "happy people"
-        
-        print(f"البحث عن فيديوهات باستخدام الكلمة المفتاحية: {query}")
-        videos = search_pexels_videos(query, per_page=1)
-        
-        if videos:
-            video_data = videos[0]
-            video_path = os.path.join(temp_dir, f"temp_video_{i}.mp4")
+        # معالجة كل جملة
+        for i, sentence in enumerate(sentences):
+            print(f"معالجة الجملة {i+1}: '{sentence[:30]}...'")
             
-            if download_video(video_data, video_path):
-                try:
-                    clip = VideoFileClip(video_path)
-                    duration = min(5, clip.duration)
-                    subclip = clip.subclip(0, duration)
-                    video_clips.append(subclip)
-                    
-                    subtitles += create_subtitle(sentence, current_time, current_time + duration)
-                    current_time += duration
-                    clip.close()
-                except Exception as e:
-                    print(f"فشل في معالجة ملف الفيديو {video_path}: {e}")
+            # اختيار كلمة مفتاحية للبحث
+            keywords = [word for word in sentence.split() if len(word) > 4]
+            query = random.choice(keywords) if keywords else "happy people"
+            
+            print(f"البحث عن فيديوهات باستخدام الكلمة المفتاحية: {query}")
+            videos = search_pexels_videos(query, per_page=1)
+            
+            if videos:
+                video_data = videos[0]
+                video_path = os.path.join(temp_dir, f"temp_video_{i}.mp4")
+                
+                if download_video(video_data, video_path):
+                    try:
+                        clip = VideoFileClip(video_path)
+                        duration = min(5, clip.duration)
+                        subclip = clip.subclip(0, duration)
+                        video_clips.append(subclip)
+                        
+                        subtitles += create_subtitle(sentence, current_time, current_time + duration)
+                        current_time += duration
+                        clip.close()
+                    except Exception as e:
+                        print(f"فشل في معالجة ملف الفيديو {video_path}: {e}")
+                        traceback.print_exc()
+                else:
+                    print(f"فشل تنزيل الفيديو للجملة: {sentence}")
             else:
-                print(f"فشل تنزيل الفيديو للجملة: {sentence}")
-        else:
-            print(f"لم يتم العثور على فيديوهات للاستعلام: {query}")
+                print(f"لم يتم العثور على فيديوهات للاستعلام: {query}")
 
-    if not video_clips:
-        print("لم يتم إنشاء أي مقاطع فيديو. إنهاء العملية.")
-        # تنظيف الدليل المؤقت
-        shutil.rmtree(temp_dir)
-        return
+        if not video_clips:
+            print("لم يتم إنشاء أي مقاطع فيديو. إنهاء العملية.")
+            return
 
-    print("دمج مقاطع الفيديو...")
-    try:
-        final_clip = concatenate_videoclips(video_clips, method="compose")
-    except Exception as e:
-        print(f"فشل في دمج مقاطع الفيديو: {e}")
-        # تنظيف الدليل المؤقت
-        shutil.rmtree(temp_dir)
-        return
+        # دمج مقاطع الفيديو
+        print("دمج مقاطع الفيديو...")
+        try:
+            final_clip = concatenate_videoclips(video_clips, method="compose")
+        except Exception as e:
+            print(f"فشل في دمج مقاطع الفيديو: {e}")
+            traceback.print_exc()
+            return
 
-    print("إضافة النصوص...")
-    try:
-        text_clips = []
-        sentences_for_text = re.split(r'(?<[.!?])\s+', SCRIPT.strip())
-        current_time_for_text = 0
-        for i, sentence in enumerate(sentences_for_text):
-            duration = min(5, len(sentence.split()) * 0.5)
-            txt_clip = create_text_clip(sentence, duration)
-            text_clips.append(txt_clip.set_start(current_time_for_text))
-            current_time_for_text += duration
+        # إضافة النصوص
+        print("إضافة النصوص...")
+        try:
+            text_clips = []
+            sentences_for_text = re.split(r'(?<=[.!?])\s+', SCRIPT.strip())
+            current_time_for_text = 0
+            for i, sentence in enumerate(sentences_for_text):
+                duration = min(5, len(sentence.split()) * 0.5)
+                txt_clip = create_text_clip(sentence, duration)
+                text_clips.append(txt_clip.set_start(current_time_for_text))
+                current_time_for_text += duration
 
-        final_clip = CompositeVideoClip([final_clip] + text_clips)
-    except Exception as e:
-        print(f"فشل في إضافة النصوص: {e}")
+            final_clip = CompositeVideoClip([final_clip] + text_clips)
+        except Exception as e:
+            print(f"فشل في إضافة النصوص: {e}")
+            traceback.print_exc()
 
-    output_filename = os.path.join(temp_dir, "final_video.mp4")
-    print(f"حفظ الفيديو النهائي باسم: {output_filename}")
-    try:
-        final_clip.write_videofile(output_filename, codec='libx264', audio_codec='aac', temp_audiofile=os.path.join(temp_dir, 'temp-audio.m4a'), remove_temp=True, fps=24)
-        print("اكتمل إنشاء الفيديو بنجاح!")
-    except Exception as e:
-        print(f"فشل في حفظ الفيديو النهائي: {e}")
-        # تنظيف الدليل المؤقت
-        shutil.rmtree(temp_dir)
-        return
-
-    print("تنظيف الملفات المؤقتة...")
-    # shutil.rmtree(temp_dir) # سيتم حذف المجلد المؤقت تلقائيًا عند انتهاء العملية
-    print("انتهت العملية.")
+        # حفظ الفيديو النهائي
+        output_filename = os.path.join(temp_dir, "final_video.mp4")
+        print(f"حفظ الفيديو النهائي باسم: {output_filename}")
+        try:
+            final_clip.write_videofile(
+                output_filename, 
+                codec='libx264', 
+                audio_codec='aac', 
+                temp_audiofile=os.path.join(temp_dir, 'temp-audio.m4a'), 
+                remove_temp=True, 
+                fps=24
+            )
+            print("اكتمل إنشاء الفيديو بنجاح!")
+            
+            # نسخ الفيديو النهائي إلى مسار يمكن الوصول إليه
+            final_output_path = os.path.join(os.getcwd(), "final_video.mp4")
+            shutil.copy2(output_filename, final_output_path)
+            print(f"تم نسخ الفيديو النهائي إلى: {final_output_path}")
+        except Exception as e:
+            print(f"فشل في حفظ الفيديو النهائي: {e}")
+            traceback.print_exc()
+            return
+    
+    finally:
+        # تنظيف الملفات المؤقتة
+        print("تنظيف الملفات المؤقتة...")
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        print("انتهت العملية.")
 
 if __name__ == "__main__":
     main()
