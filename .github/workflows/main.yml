@@ -1,10 +1,85 @@
-# في .github/workflows/main.yml
-- name: Upload to YouTube
-  env:
-    GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
-  run: |
-    source venv/bin/activate
-    python -c "
-from video_editor import upload_to_youtube_simple
-upload_to_youtube_simple('final_video.mp4')
-"
+name: Video Editor Workflow
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-video:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg imagemagick python3-tk fonts-dejavu-core libavformat-dev libavcodec-dev libavdevice-dev libavfilter-dev libswscale-dev libswresample-dev
+
+      - name: Create virtual environment
+        run: python3.10 -m venv venv
+
+      - name: Install Python dependencies
+        run: |
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install numpy==1.23.5
+          pip install imageio==2.27.0
+          pip install imageio-ffmpeg==0.4.8
+          pip install tqdm==4.66.1
+          pip install decorator==5.1.1
+          pip install moviepy==1.0.3
+          pip install Pillow==9.5.0
+          pip install requests
+          pip list
+
+      - name: Verify moviepy installation
+        run: |
+          source venv/bin/activate
+          python -c "import moviepy.editor; print('MoviePy installed successfully')"
+
+      - name: Run video creation with Pexels
+        env:
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+        run: |
+          source venv/bin/activate
+          python video_editor.py > script.log 2>&1
+          echo "Script exit code: $?"
+
+      - name: Check log file
+        run: |
+          echo "=== Script Log ==="
+          cat script.log
+          echo "=================="
+
+      - name: Check if video exists
+        id: check_files
+        run: |
+          if [ -f "final_video.mp4" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "File size: $(stat -c%s final_video.mp4) bytes"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Current directory contents:"
+            ls -la
+          fi
+
+      - name: Upload Video Artifact
+        if: steps.check_files.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-video
+          path: final_video.mp4
+
+      - name: Debug if video not found
+        if: steps.check_files.outputs.exists == 'false'
+        run: |
+          echo "Video file not found. Listing all files:"
+          find . -type f
+          echo "=== Checking for any video files ==="
+          find . -name "*.mp4" -o -name "*.avi" -o -name "*.mov"
