@@ -1,20 +1,30 @@
+# اسم سير العمل الذي سيظهر في واجهة GitHub Actions
 name: Video Editor Workflow
 
+# متى يتم تشغيل هذا السير العمل
+# 'workflow_dispatch' يعني أنه يمكن تشغيله يدوياً بالضغط على زر
 on:
   workflow_dispatch:
 
+# الوظائف (Jobs) التي سيقوم بها السير العمل. لدينا وظيفة واحدة اسمها 'create-video'
 jobs:
   create-video:
+    # نوع البيئة التي ستعمل عليها الوظيفة. ubuntu-latest هو نظام لينكس مجاني من جوجل
     runs-on: ubuntu-latest
+
+    # الخطوات (Steps) التي ستتنفذ بالترتيب
     steps:
+      # الخطوة 1: تحميل ملفات المستودع (الكود الخاص بنا)
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # الخطوة 2: تثبيت لغة بايثون اللازمة لتشغيل السكربت
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
+      # الخطوة 3: تثبيت المكتبات (Dependencies) التي يحتاجها سكربت البايثون
       - name: Install dependencies
         run: |
           python -m pip --version
@@ -22,14 +32,22 @@ jobs:
           pip install requests
           pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
           pip install moviepy
+          pip-hole
           pip install Pillow
 
+      # الخطوة 4: تشغيل سكربت البايثون الذي يقوم بكل عمل المونتاج
+      # هنا نقوم بتمرير المفاتيح السرية (API Keys) كمتغيرات بيئة لأمانها
+      # *** هذا هو الجزء المعدل الذي يحل مشكلة "ModuleNotFoundError" ***
       - name: Run Video Editor Script
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
-        run: python video_editor.py
+        run: |
+          export PYTHONPATH=$PYTHONPATH:/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages
+          python3.10 video_editor.py
 
+      # الخطوة 5: رفع الفيديو الناتج كـ "Artifact" لتمكن من تنزيله
+      # *** تم التحديث إلى الإصدار v4 ***
       - name: Upload Video Artifact
         uses: actions/upload-artifact@v4
         with:
