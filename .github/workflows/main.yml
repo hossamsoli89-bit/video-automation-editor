@@ -1,10 +1,10 @@
-name: Simple Python Test
+name: Video Editor Workflow
 
 on:
   workflow_dispatch:
 
 jobs:
-  run-python-script:
+  create-video:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -15,5 +15,23 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Run simple script
-        run: python -c "print('Hello from GitHub Actions! Python is working.')"
+      - name: Install dependencies
+        run: |
+          python -m pip --version
+          python -m pip install --upgrade pip
+          pip install requests
+          pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
+          pip install moviepy
+          pip install Pillow
+
+      - name: Run Video Editor Script
+        env:
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+        run: python video_editor.py
+
+      - name: Upload Video Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-video
+          path: final_video.mp4
