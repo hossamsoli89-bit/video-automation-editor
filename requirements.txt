@@ -1,2 +1,7 @@
-- name: Install from requirements.txt
-  run: python3.10 -m pip install -r requirements.txt
+requests>=2.28.0
+google-api-python-client>=2.70.0
+google-auth-httplib2>=0.1.0
+google-auth-oauthlib>=0.8.0
+moviepy>=1.0.3
+Pillow>=9.0.0
+numpy>=1.23.0
