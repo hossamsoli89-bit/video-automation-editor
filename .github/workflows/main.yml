@@ -2,49 +2,56 @@
 name: Video Editor Workflow
 
 # متى يتم تشغيل هذا السير العمل
-# 'workflow_dispatch' يعني أنه يمكن تشغيله يدوياً بالضغط على زر
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # يمكن تشغيله يدوياً بالضغط على زر
 
-# الوظائف (Jobs) التي سيقوم بها السير العمل. لدينا وظيفة واحدة اسمها 'create-video'
+# الوظائف (Jobs) التي سيقوم بها السير العمل
 jobs:
   create-video:
-    # نوع البيئة التي ستعمل عليها الوظيفة. ubuntu-latest هو نظام لينكس مجاني من جوجل
+    # نوع البيئة التي ستعمل عليها الوظيفة
     runs-on: ubuntu-latest
 
     # الخطوات (Steps) التي ستتنفذ بالترتيب
     steps:
-      # الخطوة 1: تحميل ملفات المستودع (الكود الخاص بنا)
+      # الخطوة 1: تحميل ملفات المستودع
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # الخطوة 2: تثبيت لغة بايثون اللازمة لتشغيل السكربت
+      # الخطوة 2: تثبيت لغة بايثون
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      # الخطوة 3: تثبيت المكتبات (Dependencies) التي يحتاجها سكربت البايثون
-      - name: Install dependencies
+      # الخطوة 3: تثبيت الاعتماديات النظامية المطلوبة لـ moviepy
+      - name: Install system dependencies
         run: |
-          python -m pip --version
-          python -m pip install --upgrade pip
-          pip install requests
-          pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
-          pip install moviepy
-          pip install Pillow
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg imagemagick python3-tk fonts-dejavu-core
 
-      # الخطوة 4: تشغيل سكربت البايثون الذي يقوم بكل عمل المونتاج
-      # هنا نقوم بتمرير المفاتيح السرية (API Keys) كمتغيرات بيئة لأمانها
+      # الخطوة 4: تثبيت مكتبات بايثون
+      - name: Install Python dependencies
+        run: |
+          python3.10 -m pip --version
+          python3.10 -m pip install --upgrade pip
+          python3.10 -m pip install requests
+          python3.10 -m pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
+          python3.10 -m pip install moviepy
+          python3.10 -m pip install Pillow
+          python3.10 -m pip install numpy
+
+      # الخطوة 5: التحقق من تثبيت moviepy
+      - name: Verify moviepy installation
+        run: python3.10 -c "import moviepy.editor; print('MoviePy installed successfully')"
+
+      # الخطوة 6: تشغيل سكربت البايثون
       - name: Run Video Editor Script
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
-        # *** التعديل النهائي: استخدام python3.10 لتجنب ModuleNotFoundError ***
         run: python3.10 video_editor.py
 
-      # الخطوة 5: رفع الفيديو الناتج كـ "Artifact" لتمكن من تنزيله
-      # *** تم التحديث إلى الإصدار v4 ***
+      # الخطوة 7: رفع الفيديو الناتج كـ Artifact
       - name: Upload Video Artifact
         uses: actions/upload-artifact@v4
         with:
