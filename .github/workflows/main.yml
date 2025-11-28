@@ -24,7 +24,7 @@ jobs:
       - name: Create virtual environment
         run: python3.10 -m venv venv
 
-      - name: Install Python dependencies in venv
+      - name: Install Python dependencies
         run: |
           source venv/bin/activate
           pip install --upgrade pip
@@ -34,8 +34,6 @@ jobs:
           pip install tqdm==4.66.1
           pip install decorator==5.1.1
           pip install moviepy==1.0.3
-          pip install requests
-          pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
           pip install Pillow==9.5.0
           pip list
 
@@ -44,16 +42,19 @@ jobs:
           source venv/bin/activate
           python -c "import moviepy.editor; print('MoviePy installed successfully')"
 
-      - name: Run Video Editor Script
-        env:
-          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+      - name: Run simple video creation
         run: |
           source venv/bin/activate
-          python video_editor.py
-        continue-on-error: true
+          python video_editor.py > script.log 2>&1
+          echo "Script exit code: $?"
 
-      - name: Check if video file exists
+      - name: Check log file
+        run: |
+          echo "=== Script Log ==="
+          cat script.log
+          echo "=================="
+
+      - name: Check if video exists
         id: check_files
         run: |
           if [ -f "final_video.mp4" ]; then
@@ -75,19 +76,7 @@ jobs:
       - name: Debug if video not found
         if: steps.check_files.outputs.exists == 'false'
         run: |
-          echo "Video file not found. Listing current directory:"
-          ls -la
-          echo "Looking for any .mp4 files:"
-          find . -name "*.mp4" -type f
-          echo "Checking for any video files:"
-          find . -type f \( -name "*.mp4" -o -name "*.mov" -o -name "*.avi" \)
-          echo "Checking script logs:"
-          if [ -f "script.log" ]; then
-            cat script.log
-          fi
-
-      - name: Check script exit code
-        if: always()
-        run: |
-          echo "Script exit code: ${{ steps.run-script.outcome }}"
-          echo "Job status: ${{ job.status }}"
+          echo "Video file not found. Listing all files:"
+          find . -type f
+          echo "=== Checking for any video files ==="
+          find . -name "*.mp4" -o -name "*.avi" -o -name "*.mov"
