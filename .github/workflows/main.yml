@@ -1,4 +1,4 @@
-name: Test With Libraries
+name: Simple Python Test
 
 on:
   workflow_dispatch:
@@ -15,17 +15,5 @@ jobs:
         with:
           python-version: '3.10'
 
-      # الخطوة الجديدة: تثبيت مكتبتين خفيفتين
-      - name: Install dependencies
-        run: |
-          python -m pip install requests Pillow
-
-      # تعديل الأمر لاختبار المكتبات
-      - name: Run script with libraries
-        run: python -c "
-import requests
-import PIL
-print('Successfully imported requests and Pillow!')
-print('Requests version:', requests.__version__)
-print('Pillow version:', PIL.__version__)
-"
+      - name: Run simple script
+        run: python -c "print('Hello from GitHub Actions! Python is working.')"
