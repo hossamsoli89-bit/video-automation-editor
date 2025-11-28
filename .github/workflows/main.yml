@@ -19,7 +19,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg imagemagick python3-tk fonts-dejavu-core libavformat-dev libavcodec-dev libavdevice-dev libavfilter-dev libswscale-dev libswreserve-dev
+          sudo apt-get install -y ffmpeg imagemagick python3-tk fonts-dejavu-core libavformat-dev libavcodec-dev libavdevice-dev libavfilter-dev libswscale-dev libswresample-dev
 
       - name: Create virtual environment
         run: python3.10 -m venv venv
@@ -35,6 +35,7 @@ jobs:
           pip install decorator==5.1.1
           pip install moviepy==1.0.3
           pip install Pillow==9.5.0
+          pip install requests
           pip list
 
       - name: Verify moviepy installation
@@ -42,7 +43,9 @@ jobs:
           source venv/bin/activate
           python -c "import moviepy.editor; print('MoviePy installed successfully')"
 
-      - name: Run simple video creation
+      - name: Run video creation with Pexels
+        env:
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: |
           source venv/bin/activate
           python video_editor.py > script.log 2>&1
