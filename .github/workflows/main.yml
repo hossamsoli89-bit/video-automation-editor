@@ -2,25 +2,25 @@
 name: Video Editor Workflow
 
 # متى يتم تشغيل هذا السير العمل
-# 'workflow_dispatch' يعني أنه يمكن تشغيله يدوياً بالضغط على زر
 on:
   workflow_dispatch:
 
-# الوظائف (Jobs) التي سيقوم بها السير العمل. لدينا وظيفة واحدة اسمها 'create-video'
+# الوظائف (Jobs) التي سيقوم بها السير العمل
 jobs:
   create-video:
-    # نوع البيئة التي ستعمل عليها الوظيفة. ubuntu-latest هو نظام لينكس مجاني من جوجل
     runs-on: ubuntu-latest
 
     # الخطوات (Steps) التي ستتنفذ بالترتيب
     steps:
       # الخطوة 1: تحميل ملفات المستودع (الكود الخاص بنا)
+      # *** تم التحديث إلى الإصدار v4 ***
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # الخطوة 2: تثبيت لغة بايثون اللازمة لتشغيل السكربت
+      # *** تم التحديث إلى الإصدار v5 ***
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
 
@@ -35,7 +35,6 @@ jobs:
           pip install Pillow
 
       # الخطوة 4: تشغيل سكربت البايثون الذي يقوم بكل عمل المونتاج
-      # هنا نقوم بتمرير المفاتيح السرية (API Keys) كمتغيرات بيئة لأمانها
       - name: Run Video Editor Script
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
@@ -43,7 +42,7 @@ jobs:
         run: python video_editor.py
 
       # الخطوة 5: رفع الفيديو الناتج كـ "Artifact" لتمكن من تنزيله
-      # *** تم تصحيح هذا الجزء لاستخدام الإصدار الجديد v4 ***
+      # *** تم التحديث إلى الإصدار v4 ***
       - name: Upload Video Artifact
         uses: actions/upload-artifact@v4
         with:
